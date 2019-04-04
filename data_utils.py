@@ -35,3 +35,11 @@ def load_mnist():
     ## MNIST dataset prepared
 
     return (X_train, y_train), (X_test, y_test)
+
+def load(dataset):
+    if dataset == 'MNIST':
+        load_dataset = load_mnist
+    else:
+        load_dataset = None
+    train, test = load_dataset()
+    return train, test
