@@ -26,6 +26,18 @@ def loadTargetNet(net):
     else:
         return 0, 0, None
 
+def computePadding(target_size, in_size):
+    '''
+    Computes padding to a target size
+    from a given in_size
+    '''
+    target_h, target_w = target_size
+    in_h, in_w = in_size
+    x_padding = int(np.floor((target_h-in_h)/2))
+    y_padding = int(np.ceil((target_w-in_w)/2))
+    padding = ([x_padding, y_padding], [x_padding, y_padding])
+    return padding
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--epochs', type=int, default=2,
@@ -64,4 +76,3 @@ if __name__ == '__main__':
         print('Failed to load target net: %s' % 'Inception_V3')
         sys.exit(-1)
     target.trainable = False
-    
