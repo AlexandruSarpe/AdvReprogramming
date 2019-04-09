@@ -38,6 +38,13 @@ def computePadding(target_size, in_size):
     padding = ([x_padding, y_padding], [x_padding, y_padding])
     return padding
 
+def createW(size):
+    '''
+    Inits Weights following a random uniform curve
+    '''
+    h_image, w_image = size
+    return tf.random_uniform(shape = [h_image, w_image, 3])
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--epochs', type=int, default=2,
