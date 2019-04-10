@@ -93,3 +93,22 @@ if __name__ == '__main__':
         print('Failed to load target net: %s' % 'Inception_V3')
         sys.exit(-1)
     target.trainable = False
+
+    in_size = (X_train[0].shape[0], X_train[0].shape[1])
+    padding = computePadding(adv_size, in_size)
+
+    M = tf.constant(createMask(adv_size, padding))
+    W = createW(adv_size)
+
+    import matplotlib.pypot as plt
+    plt.imshow(M)
+    plt.show()
+
+    plt.imshow(W.numpy())
+    plt.show()
+
+    plt.imshow(M+W.numpy())
+    plt.show()
+
+    print(padding, in_size, adv_size)
+
