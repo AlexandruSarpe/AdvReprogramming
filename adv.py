@@ -45,6 +45,16 @@ def createW(size):
     h_image, w_image = size
     return tf.random_uniform(shape = [h_image, w_image, 3])
 
+def createMask(size, pad):
+    '''
+    Computes mask
+    '''
+    height, width = size
+    (i_min, i_max), (j_min, j_max) = pad
+    M = np.ones((height, width, 3)).astype('float32')
+    M[i_min:height-i_max-1, j_min:width-j_max-1, :] = 0
+    return M
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--epochs', type=int, default=2,
