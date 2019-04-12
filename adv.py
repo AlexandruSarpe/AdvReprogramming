@@ -4,6 +4,8 @@ tf.enable_eager_execution()
 
 import numpy as np
 import data_utils
+import time
+import sys
 
 class AdversarialProgramming(tf.keras.Model):
     def __init__(self, W, M, adv_size, alpha):
@@ -114,3 +116,21 @@ if __name__ == '__main__':
     adv_model = AdversarialProgramming(W, M, adv_size, alpha)
     opt = tf.train.AdamOptimizer(learning_rate=0.05)
 
+    for epoch in range(args['epochs']):
+        tick = time.time()
+        print("Epoch: {}".format(epoch+1))
+        i = 0
+        for xb, yb in train_it.batch(args['batch_size']):
+            '''
+            minimize the loss using Adam with a learing rate of 0.05
+            '''
+            padded = tf.pad(xb, [[0,0],padding[0],padding[1],[0,0]])
+            opt.minimize(lambda: loss(adv_model, padded, yb), var_list=[adv_model.W])
+        elapsed = time.time()-tick
+        print("elapsed time: {} seconds".format(elapsed))
+
+    '''
+    save weigths into file
+    '''
+    with open(args['outfile'], "wb") as f:
+        np.save(f, adv_model.W.numpy())
