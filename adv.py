@@ -100,15 +100,17 @@ if __name__ == '__main__':
     M = tf.constant(createMask(adv_size, padding))
     W = createW(adv_size)
 
-    import matplotlib.pypot as plt
-    plt.imshow(M)
-    plt.show()
+    cce = tf.keras.losses.CategoricalCrossentropy()
 
-    plt.imshow(W.numpy())
-    plt.show()
+    def loss(model, xb, yb):
+        '''
+        We define our loss function as:
+        argmin(-Log(P(yb|Xadv))+lambda*||W||^2)
+        '''
+        adv = model(xb)
+        y_pred = target(adv)
+        return tf.reduce_min(cce(yb, y_pred))+args['lambda']*tf.nn.l2_loss(W)
 
-    plt.imshow(M+W.numpy())
-    plt.show()
-
-    print(padding, in_size, adv_size)
+    adv_model = AdversarialProgramming(W, M, adv_size, alpha)
+    opt = tf.train.AdamOptimizer(learning_rate=0.05)
 
