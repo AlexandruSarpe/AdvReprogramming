@@ -116,11 +116,29 @@ if __name__ == '__main__':
     adv_model = AdversarialProgramming(W, M, adv_size, alpha)
     opt = tf.train.AdamOptimizer(learning_rate=0.05)
 
+    # Create validation set
+    data = tf.pad(np.array(X_test[:25]), [[0,0],padding[0],padding[1],[0,0]])
+    labels = np.array(y_test[:25])
+
     for epoch in range(args['epochs']):
         tick = time.time()
         print("Epoch: {}".format(epoch+1))
         i = 0
         for xb, yb in train_it.batch(args['batch_size']):
+            '''
+            every 50 steps we compute the current accuracy
+            '''
+            if i % 50 == 0:
+                ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
+                ps = [tf.tanh(adv_model.W*M) for x in ps]
+                prog = ps + data
+                preds = target(prog)
+                count = 0
+                for j in range(data.shape[0]):
+                    if np.argmax(preds[j].numpy()) == np.argmax(labels[j]):
+                        count += 1
+                print("     Test acc at step {}: {}".format(i+1, count/25))
+            i+=1
             '''
             minimize the loss using Adam with a learing rate of 0.05
             '''
