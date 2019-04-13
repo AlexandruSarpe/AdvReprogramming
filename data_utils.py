@@ -36,9 +36,32 @@ def load_mnist():
 
     return (X_train, y_train), (X_test, y_test)
 
+def load_cifar():
+    img_rows, img_cols = 32, 32
+    num_classes = 1000
+
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    
+    X_train = np.zeros((x_train.shape[0],x_train.shape[1],x_train.shape[2],3)).astype('uint8')
+    X_test = np.zeros((x_test.shape[0],x_test.shape[1],x_test.shape[2],3)).astype('uint8')
+
+    X_train = X_train.astype('float32')
+    X_test = X_test.astype('float32')
+    X_train /= 255
+    X_test /= 255
+
+
+    y_train = tf.keras.utils.to_categorical(y_train, num_classes)
+    y_test = tf.keras.utils.to_categorical(y_test, num_classes)
+
+    return (X_train, y_train), (X_test, y_test)
+
+
 def load(dataset):
     if dataset == 'MNIST':
         load_dataset = load_mnist
+    elif dataset == 'CIFAR10':
+        load_dataset = load_cifar
     else:
         load_dataset = None
     train, test = load_dataset()
