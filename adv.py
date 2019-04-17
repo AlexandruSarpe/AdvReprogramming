@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.eager as tfe
 tf.enable_eager_execution()
 
+import matplotlib.pyplot as plt
 import numpy as np
 import data_utils
 import argparse
@@ -76,8 +77,11 @@ if __name__ == '__main__':
         help='dataset to use')
     parser.add_argument('-b', '--batch_size', type=int, default=32,
         help='size of mini-batches')
+    parser.add_argument('-L', '--load', type=bool, default=False,
+        help='Load model wheights from file')
     args = vars(parser.parse_args())
 
+    LOAD = args['load']
     alpha = args['alpha']
 
     # Load Images and Labels from specific dataset
@@ -118,38 +122,71 @@ if __name__ == '__main__':
     opt = tf.train.AdamOptimizer(learning_rate=0.05)
 
     # Create validation set
-    data = tf.pad(np.array(X_test[:25]), [[0,0],padding[0],padding[1],[0,0]])
-    labels = np.array(y_test[:25])
+    b_val = 25
+    data = tf.pad(np.array(X_test[:b_val]), [[0,0],padding[0],padding[1],[0,0]])
+    labels = np.array(y_test[:b_val])
 
-    for epoch in range(args['epochs']):
-        tick = time.time()
-        print("Epoch: {}".format(epoch+1))
-        i = 0
-        for xb, yb in train_it.batch(args['batch_size']):
-            '''
-            every 50 steps we compute the current accuracy
-            '''
-            if i % 50 == 0:
-                ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
-                ps = [tf.tanh(adv_model.W*M) for x in ps]
-                prog = ps + data
-                preds = target(prog)
-                count = 0
-                for j in range(data.shape[0]):
-                    if np.argmax(preds[j].numpy()) == np.argmax(labels[j]):
-                        count += 1
-                print("     Test acc at step {}: {}".format(i+1, count/25))
-            i+=1
-            '''
-            minimize the loss using Adam with a learing rate of 0.05
-            '''
-            padded = tf.pad(xb, [[0,0],padding[0],padding[1],[0,0]])
-            opt.minimize(lambda: loss(adv_model, padded, yb), var_list=[adv_model.W])
-        elapsed = time.time()-tick
-        print("elapsed time: {} seconds".format(elapsed))
+    if not LOAD:
+        for epoch in range(args['epochs']):
+            tick = time.time()
+            print("Epoch: {}".format(epoch+1))
+            i = 0
+            for xb, yb in train_it.batch(args['batch_size']):
+                '''
+                every 50 steps we compute the current accuracy
+                '''
+                if i % 50 == 0:
+                    ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
+                    ps = [tf.tanh(adv_model.W*M) for x in ps]
+                    prog = ps + data
+                    preds = target(prog)
+                    count = 0
+                    for j in range(data.shape[0]):
+                        if np.argmax(preds[j].numpy()) == np.argmax(labels[j]):
+                            count += 1
+                    print("     Test acc at step {}: {}".format(i+1, count/b_val))
+                i+=1
+                '''
+                minimize the loss using Adam with a learing rate of 0.05
+                '''
+                padded = tf.pad(xb, [[0,0],padding[0],padding[1],[0,0]])
+                opt.minimize(lambda: loss(adv_model, padded, yb), var_list=[adv_model.W])
+            elapsed = time.time()-tick
+            print("elapsed time: {} seconds".format(elapsed))
 
-    '''
-    save weigths into file
-    '''
-    with open(args['outfile'], "wb") as f:
-        np.save(f, adv_model.W.numpy())
+        '''
+        save weigths into file
+        '''
+        with open(args['outfile'], "wb") as f:
+            np.save(f, adv_model.W.numpy())
+    else:
+        acc_log = []
+        for data, labels in test_it.batch(b_val):
+            padded = tf.pad(data, [[0,0],padding[0],padding[1],[0,0]])
+            ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
+            ps = [tf.tanh(W*M) for x in ps]
+            prog = ps + padded
+            preds = target(prog)
+            count = 0
+            for j in range(data.shape[0]):
+                if np.argmax(preds[j].numpy()) == np.argmax(labels[j]):
+                    count += 1
+            acc_log.append(count/b_val)
+        print("Non trained weights acc {}".format(np.average(acc_log)))
+
+        W = np.load(args['infile'])
+        plt.imshow(W)
+        plt.show()
+        acc_log = []
+        for data, labels in test_it.batch(b_val):
+            padded = tf.pad(data, [[0,0],padding[0],padding[1],[0,0]])
+            ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
+            ps = [tf.tanh(W*M) for x in ps]
+            prog = ps + padded
+            preds = target(prog)
+            count = 0
+            for j in range(data.shape[0]):
+                if np.argmax(preds[j].numpy()) == np.argmax(labels[j]):
+                    count += 1
+            acc_log.append(count/b_val)
+        print("Trained weights acc {}".format(np.average(acc_log)))
