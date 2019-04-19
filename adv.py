@@ -10,17 +10,23 @@ import time
 import sys
 
 class AdversarialProgramming(tf.keras.Model):
-    def __init__(self, W, M, adv_size, alpha):
+    def __init__(self, W, M, adv_size, alpha, cover):
         super(AdversarialProgramming, self).__init__()
         self.W = tfe.Variable(W)
         self.M = M
         (self.h, self.w) = adv_size
         self.alpha = alpha
+        self.cover = cover
 
     def call(self, inputs):
         ps = np.empty(shape=[inputs.shape[0], self.h, self.w, 3])
-        ps = [tf.tanh(self.W*self.M) for x in ps]
-        prog = ps + inputs
+        if self.cover is None:
+            ps = [tf.tanh(self.W*self.M) for x in ps]
+            prog = ps + inputs
+        else:
+            ps = tf.cast(inputs, dtype='float32')
+            ps = [self.cover + self.alpha*tf.tanh(x + self.W*self.M) for x in ps]
+            prog = tf.clip_by_value(ps, 0, 1)
         return prog
 
 def loadTargetNet(net):
@@ -59,6 +65,15 @@ def createMask(size, pad):
     M[i_min:height-i_max-1, j_min:width-j_max-1, :] = 0
     return M
 
+def shuffle_custom(mat, permx, permy):
+    new_ = np.empty(mat.shape)
+    tmp_ = np.empty(mat.shape)
+    for e,i in zip(permx, range(mat.shape[0])):
+        tmp_[i] = mat[e]
+    for e,i in zip(permy, range(mat.shape[1])):
+        new_[:,i] = tmp_[:,e]
+    return new_
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-e', '--epochs', type=int, default=2,
@@ -79,13 +94,15 @@ if __name__ == '__main__':
         help='size of mini-batches')
     parser.add_argument('-L', '--load', type=bool, default=False,
         help='Load model wheights from file')
+    parser.add_argument('-c', '--concealing', type=bool, default=False,
+        help='Use concealing')
     args = vars(parser.parse_args())
 
     LOAD = args['load']
     alpha = args['alpha']
 
     # Load Images and Labels from specific dataset
-    (X_train, y_train), (X_test, y_test) = data_utils.load(dataset=args['dataset'])
+    (X_train, y_train), (X_test, y_test), cover = data_utils.load(dataset=args['dataset'])
     print('X_train shape:', X_train.shape)
     print(X_train.shape[0], 'train samples')
     print(X_test.shape[0], 'test samples')
@@ -107,6 +124,14 @@ if __name__ == '__main__':
     M = tf.constant(createMask(adv_size, padding))
     W = createW(adv_size)
 
+    if args['concealing']:
+        permx = np.arange(adv_size[0])
+        permy = np.arange(adv_size[1])
+
+        np.random.shuffle(permx)
+        np.random.shuffle(permy)
+        M = shuffle_custom(M, permx, permy)
+
     cce = tf.keras.losses.CategoricalCrossentropy()
 
     def loss(model, xb, yb):
@@ -118,12 +143,14 @@ if __name__ == '__main__':
         y_pred = target(adv)
         return tf.reduce_min(cce(yb, y_pred))+args['lambda']*tf.nn.l2_loss(W)
 
-    adv_model = AdversarialProgramming(W, M, adv_size, alpha)
+    adv_model = AdversarialProgramming(W, M, adv_size, alpha, cover)
     opt = tf.train.AdamOptimizer(learning_rate=0.05)
 
     # Create validation set
     b_val = 25
     data = tf.pad(np.array(X_test[:b_val]), [[0,0],padding[0],padding[1],[0,0]])
+    if args['concealing']:
+        data = np.array([shuffle_custom(x, permx, permy) for x in data])
     labels = np.array(y_test[:b_val])
 
     if not LOAD:
@@ -137,8 +164,12 @@ if __name__ == '__main__':
                 '''
                 if i % 50 == 0:
                     ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
-                    ps = [tf.tanh(adv_model.W*M) for x in ps]
-                    prog = ps + data
+                    if not args['concealing']:
+                        ps = [tf.tanh(adv_model.W*M) for x in ps]
+                        prog = ps + data
+                    else:
+                        ps = data
+                        prog = np.array([np.clip(cover+alpha*tf.tanh(x + adv_model.W*M), 0, 1) for x in ps])
                     preds = target(prog)
                     count = 0
                     for j in range(data.shape[0]):
@@ -150,6 +181,8 @@ if __name__ == '__main__':
                 minimize the loss using Adam with a learing rate of 0.05
                 '''
                 padded = tf.pad(xb, [[0,0],padding[0],padding[1],[0,0]])
+                if args['concealing']:
+                    padded = np.array([shuffle_custom(x, permx, permy) for x in padded])
                 opt.minimize(lambda: loss(adv_model, padded, yb), var_list=[adv_model.W])
             elapsed = time.time()-tick
             print("elapsed time: {} seconds".format(elapsed))
@@ -164,8 +197,12 @@ if __name__ == '__main__':
         for data, labels in test_it.batch(b_val):
             padded = tf.pad(data, [[0,0],padding[0],padding[1],[0,0]])
             ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
-            ps = [tf.tanh(W*M) for x in ps]
-            prog = ps + padded
+            if not args['concealing']:
+                ps = [tf.tanh(W*M) for x in ps]
+                prog = ps + padded
+            else:
+                ps = padded.numpy()
+                prog = np.array([np.clip(cover+alpha*tf.tanh(x + W*M) ,0, 1) for x in ps])
             preds = target(prog)
             count = 0
             for j in range(data.shape[0]):
@@ -181,8 +218,12 @@ if __name__ == '__main__':
         for data, labels in test_it.batch(b_val):
             padded = tf.pad(data, [[0,0],padding[0],padding[1],[0,0]])
             ps = np.empty(shape=[data.shape[0], adv_size[0], adv_size[1], 3])
-            ps = [tf.tanh(W*M) for x in ps]
-            prog = ps + padded
+            if not args['concealing']:
+                ps = [tf.tanh(W*M) for x in ps]
+                prog = ps + padded
+            else:
+                ps = tf.cast(padded.numpy(), dtype='float32')
+                prog = np.array([np.clip(cover+alpha*tf.tanh(x + W*M), 0, 1) for x in ps])
             preds = target(prog)
             count = 0
             for j in range(data.shape[0]):
@@ -190,3 +231,4 @@ if __name__ == '__main__':
                     count += 1
             acc_log.append(count/b_val)
         print("Trained weights acc {}".format(np.average(acc_log)))
+        

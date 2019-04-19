@@ -57,7 +57,13 @@ def load_cifar():
     return (X_train, y_train), (X_test, y_test)
 
 
-def load(dataset):
+def load(dataset, concealing):
+    cover = None
+    if concealing:
+        path =  "./data/dog.jpg"
+        imgnet = cv2.imread(path)
+        cover = np.array(cv2.resize(imgnet, dsize=(299, 299), interpolation=cv2.INTER_CUBIC), dtype='float32')
+        cover /= 255
     if dataset == 'MNIST':
         load_dataset = load_mnist
     elif dataset == 'CIFAR10':
@@ -65,4 +71,4 @@ def load(dataset):
     else:
         load_dataset = None
     train, test = load_dataset()
-    return train, test
+    return train, test, cover
