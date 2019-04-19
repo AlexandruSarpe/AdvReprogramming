@@ -3,6 +3,7 @@ from PIL import Image
 from tensorflow.keras.datasets import mnist
 import tensorflow as tf
 import numpy as np
+import cv2
 
 def load_mnist():
     # the data, split between train and test sets
