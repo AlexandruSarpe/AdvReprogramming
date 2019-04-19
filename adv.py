@@ -102,7 +102,7 @@ if __name__ == '__main__':
     alpha = args['alpha']
 
     # Load Images and Labels from specific dataset
-    (X_train, y_train), (X_test, y_test), cover = data_utils.load(dataset=args['dataset'])
+    (X_train, y_train), (X_test, y_test), cover = data_utils.load(dataset=args['dataset'], concealing=args['concealing'])
     print('X_train shape:', X_train.shape)
     print(X_train.shape[0], 'train samples')
     print(X_test.shape[0], 'test samples')
@@ -231,4 +231,3 @@ if __name__ == '__main__':
                     count += 1
             acc_log.append(count/b_val)
         print("Trained weights acc {}".format(np.average(acc_log)))
-        
