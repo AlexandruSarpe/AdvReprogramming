@@ -25,6 +25,12 @@ def load_mnist():
     X_train = np.zeros((x_train.shape[0],x_train.shape[1],x_train.shape[2],3)).astype('uint8')
     X_test = np.zeros((x_test.shape[0],x_test.shape[1],x_test.shape[2],3)).astype('uint8')
 
+    for i in range(x_train.shape[0]):
+        X_train[i] = cv2.cvtColor(x_train[i,:,:,0],cv2.COLOR_GRAY2RGB)
+
+    for i in range(x_test.shape[0]):
+        X_test[i] = cv2.cvtColor(x_test[i,:,:,0],cv2.COLOR_GRAY2RGB)
+
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
     X_train /= 255
@@ -51,6 +57,11 @@ def load_cifar():
     X_train /= 255
     X_test /= 255
 
+    for i in range(x_train.shape[0]):
+        X_train[i] = cv2.cvtColor(x_train[i,:,:,0],cv2.COLOR_GRAY2RGB)
+
+    for i in range(x_test.shape[0]):
+        X_test[i] = cv2.cvtColor(x_test[i,:,:,0],cv2.COLOR_GRAY2RGB)
 
     y_train = tf.keras.utils.to_categorical(y_train, num_classes)
     y_test = tf.keras.utils.to_categorical(y_test, num_classes)
