@@ -1,6 +1,7 @@
 import tensorflow.keras.backend as K
 from PIL import Image
 from tensorflow.keras.datasets import mnist
+from tensorflow.keras.datasets import cifar10
 import tensorflow as tf
 import numpy as np
 import cv2
@@ -69,13 +70,14 @@ def load_cifar():
     return (X_train, y_train), (X_test, y_test)
 
 
-def load(dataset, concealing):
+def load(dataset, concealing, c_size):
     cover = None
     if concealing:
         path =  "./data/dog.jpg"
         imgnet = cv2.imread(path)
-        cover = np.array(cv2.resize(imgnet, dsize=(299, 299), interpolation=cv2.INTER_CUBIC), dtype='float32')
+        cover = np.array(cv2.resize(imgnet, dsize=c_size, interpolation=cv2.INTER_CUBIC), dtype='float32')
         cover /= 255
+        cover = np.array([cover])
     if dataset == 'MNIST':
         load_dataset = load_mnist
     elif dataset == 'CIFAR10':
